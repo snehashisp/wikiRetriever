@@ -10,6 +10,7 @@ class ShardThread():
 
 		self.shard_size = 0
 		self.current_shard_no = init_shard_no
+		self.last_shard_no = init_shard_no
 		self._shard_file = None
 		self.queue = deque()
 		self.file_dir = file_dir
@@ -74,13 +75,16 @@ class ShardCreator():
 
 	def add(self, page):
 
-		if self._shard_threads[self._current_thread].shard_size + page.getSize() > self._max_shard_size:
-			page.shard_no = self._shard_counter
+		if self._shard_threads[self._current_thread].shard_size > self._max_shard_size:
+			page.shard_no = self._shard_counter 
 			self._shard_threads[self._current_thread].shard_size = 1
+			self._shard_threads[self._current_thread].last_shard_no = self._shard_counter
 			self._shard_counter += 1
+		elif self._shard_threads[self._current_thread].shard_size + page.getSize() > self._max_shard_size:
+			page.shard_no = self._shard_threads[self._current_thread].last_shard_no
+			page.final = True
 		else:
-			page.shard_no = self._shard_threads[self._current_thread].current_shard_no
-
+			page.shard_no = self._shard_threads[self._current_thread].last_shard_no
 		self._shard_threads[self._current_thread].addPage(page)
 		self._current_thread = (self._current_thread + 1) % len(self._shard_threads)
 

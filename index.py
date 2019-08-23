@@ -9,7 +9,7 @@ class PageIndex():
 
 	def __init__(self, page, title = set(), text_map = {}, infobox = set(), 
 					category = set(), reference = set(), ext_links = set(), others = set()):
-		self.page = copy.deepcopy(page)
+		self.page = page
 		self.text_map = copy.deepcopy(text_map)
 		self.infobox = copy.deepcopy(infobox)
 		self.category = copy.deepcopy(category)
@@ -67,21 +67,24 @@ class ShardIndex():
 
 	def readIndex(self):
 		with open(self.shard_index_dir + "shard-index-" + str(self.shard_no), 'r', encoding = 'utf-8') as fp:
-			re_sequence = [[r'(,|{)(\w+):', r'\1"\2":'], 
+			re_sequence = [[r'(\||{)(.*?):', r'\1"\2":'], 
 							[r',([icreto]+);', r',"\1";'],
 							[r',([icreto]+),', r',"\1",'], 
 							[r',([icreto]+)\|', r',"\1"]],'], 
+							[r',([icreto]+)]', r',"\1"]'],
 							[r':', ':[['],
 							[r';', '],['], 
-							[r'\|', ']]']]
-			data = json.loads(fp.read(), ensure_ascii = False)
+							[r'\|', ']],']]
+			data = json.load(fp)
 			text, code_table = data['d'], data['t']
+			code_table = re.sub(r'({|,)(.?):', r'\1"\2":', code_table)
+			code_table = json.loads(code_table)
+			code_table[_EOF] = code_table.pop("E")
+			text = self._decodeHuffman(code_table, text)
 			for regex, sub in re_sequence:
 				text = re.sub(regex, sub, text)
-				code_table = re.sub(regex, sub, code_table)
-			code_table = json.loads(code_table)
-			code_table[_EOF] = code_table.pop("EOF")
-			self.index = json.loads(self._decodeHuffman(code_table, text))
+			print(text[2522000:2523000])
+			self.index = json.loads(text)
 			self.updated = True
 
 	def _addEntry(self, word, entry):
@@ -135,14 +138,15 @@ class ShardIndex():
 			for regex, sub in re_sequence:
 				text = re.sub(regex, sub, text)
 			entext, code_table = self._encodeHuffman(text)
-			code_table['EOF'] = code_table.pop(_EOF)
+			#print(entext)
+			code_table['E'] = code_table.pop(_EOF)
 			code_table = json.dumps(code_table, ensure_ascii = False)
-			# for regex, sub in re_sequence:
-			# 	code_table = re.sub(regex, sub, code_table)
+			code_table = re.sub(r' |"', '', code_table)
 			index_map = {'d':entext, "t":code_table}
 			json.dump(index_map, fp, ensure_ascii = False)
 			self.updated = True
 
 
-
-
+if __name__ == "__main__":
+	shi = ShardIndex(0, "ind/")
+	shi.readIndex()

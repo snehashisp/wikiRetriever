@@ -9,6 +9,7 @@ class Page():
 		self.title = None
 		self.text = None
 		self.shard_no = None
+		self.final = False
 
 	def __str__(self):
 
@@ -25,7 +26,7 @@ class Page():
 			})
 
 	def getSize(self):
-		return len(str(self.namespace)) + len(str(self.title)) + len(str(self.text)) + len(self.id) + 48
+		return len(str(self.namespace)) + len(str(self.title)) + len(str(self.text)) + len(str(self.id)) + 48
 
 
 

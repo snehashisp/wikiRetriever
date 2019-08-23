@@ -3,8 +3,10 @@ import mwparserfromhell
 import re
 import html
 import json
+import copy
 from wiki_page import Page
 from index import PageIndex, ShardIndex
+import time
 
 class TermsCreator():
 
@@ -14,7 +16,7 @@ class TermsCreator():
 		self.stopwords = stopwords
 		self.stemmer = stemmer
 
-	def generateTerms(self, text, rel_pos = False, group_size = 1):
+	def generateTerms(self, text, rel_pos = False, group_size = 3):
 		pos = 0
 		for t in re.finditer(self.regexp, text):
 			l, r = t.span()
@@ -33,9 +35,11 @@ class TermsCreator():
 		for term in self.generateTerms(text, rel_pos):
 			pos_arr = term_map.setdefault(term[0],term[1])
 			if type(pos_arr) == list:
-				pos_arr.append(term[1] - pos_arr[-1])
+				if term[1] != pos_arr[-1]:
+					pos_arr.append(term[1] - pos_arr[-1])
 			elif pos_arr != term[1]:
-				term_map[term[0]] = [pos_arr, term[1] - pos_arr]
+				if term[1] != pos_arr:
+					term_map[term[0]] = [pos_arr, term[1] - pos_arr]
 		return term_map
 
 
@@ -43,15 +47,16 @@ class WikiParser():
 
 	def _addUserTerms(self, index):
 		unlinktext = mwparserfromhell.parse(re.sub("\[\[|\]\]",'',str(self.data))).strip_code()
-		text = unlinktext.split("\nReferences\n")
+		untagged_text = re.sub("<[^>]*>", '', unlinktext)
+		text = untagged_text.split("\nReferences\n")
 		index.text_map.update(self.term_creator.getTermMap(text[0]))
-		try:
-			text = text[1].split("\nExternal links\n")
-			index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0]))))
-			text = text[1].split("\nCategory\n")
-			index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0]))))
-		except:
-			pass
+		# try:
+		# 	text = text[1].split("\nExternal links\n")
+		# 	index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0]))))
+		# 	text = text[1].split("\nCategory\n")
+		# 	index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0]))))
+		# except:
+		# 	pass
 
 	def _templateData(self, template):
 		data = ""
@@ -92,7 +97,10 @@ class WikiParser():
 	def _addExternalLinks(self, index):
 		exts = ""
 		for links in self.data.ifilter_external_links():
-			exts += re.sub('^www.', '', links.url.split("/")[2])
+			try:
+				exts += re.sub('^www.', '', links.url.split("/")[2])
+			except:
+				pass
 			if links.title is not None:
 				exts += str(links.title)
 		index.ext_links.update(list(map(lambda x: x[0], 
@@ -105,15 +113,16 @@ class WikiParser():
 
 	def createPageIndex(self, page):
 		self.page = page
-		unescaped_text = re.sub(' +', ' ', html.unescape(page.text))
-		untagged_text = re.sub("<[^>]*>", '', unescaped_text)
+		#unescaped_text = re.sub(' +', ' ', html.unescape(page.text))
+		#untagged_text = re.sub("<[^>]*>", '', unescaped_text)
+		untagged_text = page.text
 		self.data = mwparserfromhell.parse(untagged_text)
 		index = PageIndex(page)
 		self._addUserTerms(index)
 		self._addTitle(index)
-		self._addCategories(index)
-		self._addExternalLinks(index)
-		self._addTemplateTerms(index)
+		#self._addCategories(index)
+		#self._addExternalLinks(index)
+		#self._addTemplateTerms(index)
 		return index
 
 #code for testing
@@ -125,21 +134,21 @@ if __name__ == "__main__":
 		p1.text = fp.read()
 	p1.title = 'Deris Merrick'
 
-	p2 = Page()
-	p2.id = 690
-	with open('test', 'r') as fp:
-		p2.text = fp.read()
-	p2.title = 'Ólafur Kristjánsson'
+	# p2 = Page()
+	# p2.id = 690
+	# with open('test2', 'r') as fp:
+	# 	p2.text = fp.read()
+	# p2.title = 'Ólafur Kristjánsson'
 	shIndex = ShardIndex(1)
 	wc = WikiParser()
 	pindex1 = wc.createPageIndex(p1)
-	pindex2 = wc.createPageIndex(p2)
+	#pindex2 = wc.createPageIndex(p2)
 	shIndex.addPageIndex(pindex1)
-	shIndex.addPageIndex(pindex2)
-	pindex2.page.id = 640
-	shIndex.addPageIndex(pindex2)
-	pindex2.page.id = 639
-	shIndex.addPageIndex(pindex2)
+	#shIndex.addPageIndex(pindex2)
+	#pindex2.page.id = 640
+	#shIndex.addPageIndex(pindex2)
+	#index2.page.id = 639
+	#shIndex.addPageIndex(pindex2)
 	#pindex2.printIndex()
 	shIndex.writeIndex()
 	shIndex.readIndex()

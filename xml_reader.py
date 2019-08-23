@@ -1,7 +1,7 @@
 from xml.etree.ElementTree import iterparse
 from wiki_page import Page
 from shard import ShardCreator
-
+from index_creator import IndexCreator
 
 class XReader():
 
@@ -40,19 +40,19 @@ class XReader():
 					#print(self.newpage.namespace, self.newpage.title, self.newpage.id)
 					self.shard_creator.add(self.newpage)
 					#print(self.newpage.shard_no)
-					#index_creator.add(self.newpage)
+					self.index_creator.addPage(self.newpage)
 			elem.clear()
 
 	def iterParse(self):
 
 		for event, elem in iterparse(self.file, ('start','end')):
 			self._eventHandler(event, elem)
-
+		self.shard_creator.cleanup()
+		self.index_creator.finalize()
 
 if __name__ == "__main__":
 
-	sharder = ShardCreator(8, 10000000, file_dir = './Shards/')
-	reader = XReader('wiki.xml', None, sharder)
+	sharder = ShardCreator(1, 10000000, file_dir = './Shards/')
+	indexer = IndexCreator(4, index_loc = "./ind/")
+	reader = XReader('wiki.xml', indexer, sharder)
 	reader.iterParse()
-	sharder.cleanup()
-	print(sharder._shard_counter)
