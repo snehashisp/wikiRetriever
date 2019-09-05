@@ -2,6 +2,9 @@ from xml.etree.ElementTree import iterparse
 from wiki_page import Page
 from shard import ShardCreator
 from index_creator import IndexCreator
+import os
+import json
+import sys
 
 class XReader():
 
@@ -13,6 +16,7 @@ class XReader():
 		self.namespace_filter = [] if namespace_filter is None else namespace_filter
 		self.namespaces = {}
 		self.newpage = None
+		self.title_dict = {}
 
 	def _eventHandler(self, event, elem):
 		tag = elem.tag[elem.tag.rindex('}')+1:]
@@ -26,6 +30,7 @@ class XReader():
 		elif event == 'end' and self.newpage:
 			if tag == 'id' and self.newpage.id is None:
 				self.newpage.id = int(elem.text)
+				self.title_dict[self.newpage.id] = self.newpage.title
 			elif tag == 'ns':
 				if self.namespaces.get(elem.text, False) == False:
 					self.newpage = None
@@ -33,6 +38,7 @@ class XReader():
 					self.newpage.namespace = self.namespaces[elem.text]
 			elif tag == 'title':
 				self.newpage.title = elem.text
+				self.title_dict[self.newpage.id] = elem.text
 			elif tag == 'text':
 				self.newpage.text = elem.text
 			elif tag == 'page':
@@ -49,10 +55,17 @@ class XReader():
 			self._eventHandler(event, elem)
 		self.shard_creator.cleanup()
 		self.index_creator.finalize()
+		with open(self.index_creator.index_loc + 'title-index.json', 'w') as fp:
+			json.dump(self.title_dict, fp)
 
 if __name__ == "__main__":
 
+	index_loc = sys.argv[2]
+	if index_loc[-1] != '/':
+		index_loc += '/'
+	dump_loc = sys.argv[1] 
 	sharder = ShardCreator(1, 10000000, file_dir = './Shards/')
-	indexer = IndexCreator(4, index_loc = "./ind/")
-	reader = XReader('wiki.xml', indexer, sharder)
+	indexer = IndexCreator(1, index_loc = index_loc)
+	reader = XReader(dump_loc, indexer, sharder)
 	reader.iterParse()
+

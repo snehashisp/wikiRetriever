@@ -1,5 +1,4 @@
 import nltk
-import mwparserfromhell
 import re
 import html
 import json
@@ -7,6 +6,7 @@ import copy
 from wiki_page import Page
 from index import PageIndex, ShardIndex
 import time
+import Stemmer
 
 class TermsCreator():
 
@@ -16,18 +16,21 @@ class TermsCreator():
 		self.stopwords = stopwords
 		self.stemmer = stemmer
 
-	def generateTerms(self, text, rel_pos = False, group_size = 3):
+	def generateTerms(self, text, rel_pos = True, group_size = 2, stem = True):
+		#stem = False
 		pos = 0
 		for t in re.finditer(self.regexp, text):
 			l, r = t.span()
-			word = text[l:r].lower()
-			if len(word) == 1 or word in self.stopwords:
+			term = text[l:r].lower()
+			if len(term) == 1 or term in self.stopwords:
 				continue
-			term = self.stemmer.stem(word)
+			if stem:
+				term = self.stemmer(term)
 			pos += 1
 			if not rel_pos:
 				yield [term, l // group_size]
-			yield [term, pos // group_size]
+			else:
+				yield [term, pos // group_size]
 
 	def getTermMap(self, text, rel_pos = True):
 
@@ -42,6 +45,12 @@ class TermsCreator():
 					term_map[term[0]] = [pos_arr, term[1] - pos_arr]
 		return term_map
 
+	def getTermCount(self, text):
+		term_map = {}
+		for term in self.generateTerms(text):
+			term_map.setdefault(term[0],[0])
+			term_map[term[0]][0] += 1
+		return term_map
 
 class WikiParser():
 
@@ -50,13 +59,13 @@ class WikiParser():
 		untagged_text = re.sub("<[^>]*>", '', unlinktext)
 		text = untagged_text.split("\nReferences\n")
 		index.text_map.update(self.term_creator.getTermMap(text[0]))
-		# try:
-		# 	text = text[1].split("\nExternal links\n")
-		# 	index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0]))))
-		# 	text = text[1].split("\nCategory\n")
-		# 	index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0]))))
-		# except:
-		# 	pass
+		try:
+			text = text[1].split("\nExternal links\n")
+			index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
+			text = text[1].split("\nCategory\n")
+			index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
+		except:
+			pass
 
 	def _templateData(self, template):
 		data = ""
@@ -90,6 +99,7 @@ class WikiParser():
 		categories = "" 
 		for link in self.data.ifilter_wikilinks():
 			if 'Category' in link.title:
+				print(link.title)
 				categories += link.title.split(":")[1] + " "
 		index.category.update(list(map(lambda x:x[0], 
 			self.term_creator.generateTerms(categories))))
@@ -107,22 +117,87 @@ class WikiParser():
 			self.term_creator.generateTerms(exts))))
 
 	def __init__(self):
-		stemmer = nltk.stem.PorterStemmer()
+		#stemmer = nltk.stem.snowball.SnowballStemmer("english")
+		stemmer = Stemmer.Stemmer('english').stemWord
 		stopwords = nltk.corpus.stopwords.words('english')
 		self.term_creator = TermsCreator(stopwords, stemmer)
 
+#========================================================
+	def _get_template_terms(self, templ):
+		words = ""
+		for term in templ.split("|"):
+			try:
+				typ, data = term.split("=")
+				if "url" in typ:
+					webl = data.split(".")
+					if "www" in webl[0]:
+						words += webl[1] + " "
+					else:
+						words += webl[0].split(":")[1]
+				else:
+					words += data
+			except Exception as e:
+				raise e
+				pass
+
+		return list(map(lambda x: x[0], self.term_creator.generateTerms(words, stem = False)))
+
+	def _parsetemplate(self, text, index):
+		for template in re.findall('{{.*}}',text):
+			try:
+				ttype, data = template.split("|",1)
+				if 'cite' in ttype:
+					index.reference.update(self._get_template_terms(data))
+				elif 'Infobox' in ttype:
+					index.infobox.update(self._get_template_terms(data))
+			except:
+				pass
+
+	def _parsedata(self, text, index):
+		stext = re.sub(r'{\|.*?(\|})', '',re.sub(r'\n', '', re.sub(r'{{.*}}', '', text)))
+		#stext = re.sub(r'{{.*}}', '', text)
+		text = stext.split("\n==References==\n")
+		index.text_map.update(self.term_creator.getTermCount(text[0]))
+		try:
+			text = text[1].split("\n==External links==\n")
+			index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
+			text = text[1].split("\n==Category==\n")
+			index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
+		except:
+			pass
+
+	def _parselinksCategories(self, text, index):
+		links, categories = "", ""
+		for cat_link in re.findall(r'\[\[.*\]\]', text):
+			if 'Category:' in cat_link:
+				try:
+					categories += cat_link.split(":")[1] + " "
+				except:
+					pass
+			else:
+				links += cat_link + " "
+		index.category.update(list(map(lambda x:x[0], 
+			self.term_creator.generateTerms(categories, stem = False))))
+		index.ext_links.update(list(map(lambda x: x[0], 
+			self.term_creator.generateTerms(links, stem = False))))
+
+	def _parseTitle(self, title, index):
+		index.title.update(list(map(lambda x:x[0], 
+			self.term_creator.generateTerms(title))))
+
 	def createPageIndex(self, page):
-		self.page = page
-		#unescaped_text = re.sub(' +', ' ', html.unescape(page.text))
-		#untagged_text = re.sub("<[^>]*>", '', unescaped_text)
-		untagged_text = page.text
-		self.data = mwparserfromhell.parse(untagged_text)
+		text = re.sub(r"<[^>]*>", '', html.unescape(page.text))
+		#self.data = mwparserfromhell.parse(untagged_text)
 		index = PageIndex(page)
-		self._addUserTerms(index)
-		self._addTitle(index)
-		#self._addCategories(index)
-		#self._addExternalLinks(index)
-		#self._addTemplateTerms(index)
+		self._parsedata(text, index)
+		self._parsetemplate(text, index)
+		self._parselinksCategories(text, index)
+		self._parseTitle(page.title, index)
+		# self._addUserTerms(index)
+		# self._addTitle(index)
+		# self._addCategories(index)
+		# self._addExternalLinks(index)
+		# self._addTemplateTerms(index)
 		return index
 
 #code for testing
@@ -138,12 +213,12 @@ if __name__ == "__main__":
 	# p2.id = 690
 	# with open('test2', 'r') as fp:
 	# 	p2.text = fp.read()
-	# p2.title = 'Ólafur Kristjánsson'
 	shIndex = ShardIndex(1)
 	wc = WikiParser()
 	pindex1 = wc.createPageIndex(p1)
+	pindex1.printIndex()
 	#pindex2 = wc.createPageIndex(p2)
-	shIndex.addPageIndex(pindex1)
+	#shIndex.addPageIndex(pindex1)
 	#shIndex.addPageIndex(pindex2)
 	#pindex2.page.id = 640
 	#shIndex.addPageIndex(pindex2)
@@ -154,6 +229,7 @@ if __name__ == "__main__":
 	shIndex.readIndex()
 
 	print(json.dumps(shIndex.index, indent = 2, ensure_ascii = False))
+
 
 
 

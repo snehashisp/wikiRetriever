@@ -1,8 +1,6 @@
 import json
 import copy
 import re
-from dahuffman import HuffmanCodec
-from dahuffman.huffmancodec import _EOF
 import base64
 
 class PageIndex():
@@ -76,14 +74,15 @@ class ShardIndex():
 							[r';', '],['], 
 							[r'\|', ']],']]
 			data = json.load(fp)
-			text, code_table = data['d'], data['t']
-			code_table = re.sub(r'({|,)(.?):', r'\1"\2":', code_table)
-			code_table = json.loads(code_table)
-			code_table[_EOF] = code_table.pop("E")
-			text = self._decodeHuffman(code_table, text)
+			text = data['d']
+			# text, code_table = data['d'], data['t']
+			# code_table = re.sub(r'({|,)(.?):', r'\1"\2":', code_table)
+			# code_table = json.loads(code_table)
+			# code_table[_EOF] = code_table.pop("E")
+			# text = self._decodeHuffman(code_table, text)
 			for regex, sub in re_sequence:
 				text = re.sub(regex, sub, text)
-			print(text[2522000:2523000])
+			#print(text)
 			self.index = json.loads(text)
 			self.updated = True
 
@@ -107,7 +106,7 @@ class ShardIndex():
 					entry[0] = entry[0] - prev
 					posting = posting[:i] + [entry] + posting[i:]
 				else:
-					entry[0] = entry[0] - posting[-1][0]
+					entry[0] = entry[0] - docId
 					posting = posting + [entry]
 			self.index[word] = posting
 
@@ -137,12 +136,13 @@ class ShardIndex():
 			text = json.dumps(self.index, ensure_ascii = False)
 			for regex, sub in re_sequence:
 				text = re.sub(regex, sub, text)
-			entext, code_table = self._encodeHuffman(text)
-			#print(entext)
-			code_table['E'] = code_table.pop(_EOF)
-			code_table = json.dumps(code_table, ensure_ascii = False)
-			code_table = re.sub(r' |"', '', code_table)
-			index_map = {'d':entext, "t":code_table}
+			# entext, code_table = self._encodeHuffman(text)
+			# #print(entext)
+			# code_table['E'] = code_table.pop(_EOF)
+			# code_table = json.dumps(code_table, ensure_ascii = False)
+			# code_table = re.sub(r' |"', '', code_table)
+			# index_map = {'d':entext, "t":code_table}
+			index_map = {'d':text}
 			json.dump(index_map, fp, ensure_ascii = False)
 			self.updated = True
 

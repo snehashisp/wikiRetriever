@@ -15,7 +15,7 @@ class ShardThread():
 		self.queue = deque()
 		self.file_dir = file_dir
 		self.file_buffer_size = file_buffer_size
-		self._createShard()
+		#self._createShard()
 
 		self._thread_run = True
 		self._thread = threading.Thread(target = self.run)
@@ -47,16 +47,16 @@ class ShardThread():
 				page = self.queue.popleft()
 				if page.shard_no > self.current_shard_no:
 					self.current_shard_no = page.shard_no
-					self._closeShard()
-					self._createShard()
+				# 	self._closeShard()
+				# 	self._createShard()
 
-				self._shard_file.write(page.formatJSON()[1:-1] + ",")
+				# self._shard_file.write(page.formatJSON()[1:-1] + ",")
 
 	def delThread(self):
 
 		self._thread_run = False
 		self._thread.join()
-		self._closeShard()
+		#self._closeShard()
 
 	def __delete__(self):
 		self.delThread()
@@ -66,8 +66,8 @@ class ShardCreator():
 
 	def __init__(self, thread_count, max_shard_size, file_buffer_size = -1, file_dir = "./"):
 
-		if not os.path.exists(file_dir):
-			os.mkdir(file_dir)
+		# if not os.path.exists(file_dir):
+		# 	os.mkdir(file_dir)
 		self._shard_counter = thread_count
 		self._shard_threads = [ShardThread(i, file_buffer_size, file_dir) for i in range(self._shard_counter)]
 		self._current_thread = 0
@@ -95,3 +95,7 @@ class ShardCreator():
 
 	def __delete__(self):
 		self.cleanup()
+
+
+
+

@@ -6,6 +6,8 @@ import index
 import os
 import time
 
+debug = True
+
 class IndexCreatorProcess(multiprocessing.Process):
 
 	def __init__(self, index_loc = "./"):
@@ -39,23 +41,30 @@ class IndexCreatorProcess(multiprocessing.Process):
 			page, index = self._getPage()
 			if page:
 				try:
-					start = time.time()
-					page_index = wiki_parser.createPageIndex(page)
-					ct += time.time() - start
-					start = time.time()
-					index.addPageIndex(page_index)
-					it += time.time() - start
-					c += 1
+					if debug:
+						start = time.time()
+						page_index = wiki_parser.createPageIndex(page)
+						ct += time.time() - start
+						start = time.time()
+						index.addPageIndex(page_index)
+						it += time.time() - start
+						c += 1
+					else:
+						page_index = wiki_parser.createPageIndex(page)
+						index.addPageIndex(page_index)
+
 					if page.final:
-						print("CAVG", ct/c, "IAVG", it/c)
-						ct, it, c = 0,0,0
-						print("Final", page.id, page.shard_no)
+						if debug:
+							print("CAVG", ct/c, "IAVG", it/c)
+							ct, it, c = 0,0,0
+							print("Final", page.id, page.shard_no)
 						index.writeIndex()
 						self._index_dict.pop(page.shard_no)
 						index = None
 				except Exception as e:
-					print("Errror", page.id)
-					#raise e
+					#print("Errror", page.id)
+					# raise e
+					pass
 			elif close_queue and not page:
 				break
 
@@ -78,6 +87,7 @@ class IndexCreator():
 	def __init__(self, process_count, index_loc = "./"):
 		if not os.path.exists(index_loc):
 			os.mkdir(index_loc)
+		self.index_loc = index_loc
 		self.process_list = [IndexCreatorProcess(index_loc) for i in range(process_count)]
 		for process in self.process_list:
 			process.start()
@@ -90,3 +100,4 @@ class IndexCreator():
 		for process in self.process_list:
 			process.queue.put(1)
 			process.join()
+
