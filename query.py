@@ -1,6 +1,7 @@
 from wiki_page import Page
 from index import ShardIndex
 from parser import TermsCreator
+from cache import IndexCache
 import json
 import os
 import math
@@ -9,47 +10,6 @@ import nltk
 import re
 import sys
 import Stemmer
-
-class ShardCache():
-
-	def __init__(self, cache_size, shard_loc):
-		self.cache_size = cache_size
-		self.current_size = 0
-		self.shards = {}
-		self.shard_counter = {}
-		self.shard_loc = shard_loc
-		self._max_counter = 0
-
-	def _getReplacement(self):
-
-		minc = math.inf
-		mink = None
-		for k, v in self.shard_counter.items():
-			if v < minc:
-				mink = k
-				minc = v
-		return mink
-
-	def _getShard(self,shard_no):
-		with open(self.shard_loc + "shard-" + str(shard_no) + ".json", 'r') as fp:
-			shard = json.load(fp)
-		return shard
-
-	def getShard(self, shard_no):
-		if shard_no not in self.shards:
-			if len(self.shards) >= self.cache_size:
-				rep = self._getReplacement()
-				self.shard.pop(rep)
-				self.shard_counter.pop(rep)
-			self.shards[shard_no] = self._getShard(shard_no)
-
-		self.shard_counter[shard_no] = self._max_counter 
-		self._max_counter += 1
-		return self.shards[shard_no]
-
-	def getPageTitle(self, shard_no, page_no):
-		shard = self.getShard(shard_no)
-		return shard[str(page_no)]["title"]
 
 class Response():
 
@@ -61,46 +21,6 @@ class Response():
 		self.infobox = {}
 		self.links = {}
 		self.shard_map = {}
-
-	def _separation(self, pos):
-		count = 0
-		dist = 0
-		for i, p1 in enumerate(pos):
-			for p2 in  pos[i:]:
-				dist += abs(p2 - p1)
-				count += 1
-		return dist / count
-
-	def _getAvgSeparation(self, word_list):
-		word_set = set()
-		unique = len(word_list)
-		print(word_list)
-		for wi, words in enumerate(word_list):
-			pos = 0
-			for wpos in words:
-				if type(wpos) == int:
-					pos += wpos
-					word_set.add((wi, pos))
-
-		word_list = sorted(list(word_set), key = lambda x: x[1])
-		print(word_list)
-		word_dict = {}
-		min_sep = math.inf
-		for i in range(unique):
-			word_dict[word_list[i][0]] = word_list[i][1]
-		for i in range(unique, len(word_list)):
-			if len(word_dict.keys()) == unique:
-				min_sep = min(self._separation(list(word_dict.values())), min_sep)
-			word_dict.pop(word_list[i-unique][0])
-			word_dict[word_list[i][0]] = word_list[i][1]
-		if len(word_dict.keys()) == unique:
-			min_sep = min(self._separation(list(word_dict.values())), min_sep)
-		return min_sep
-
-	def _rankFunc(self, p1, p2):
-		if p1[1] == p2[1]:
-			return p1[2] - p1[2]
-		return -1 * (p1[1] - p2[1])
 
 	def _rankdocs(self, doc_dict):
 		doc_list = []
@@ -117,7 +37,7 @@ class Response():
 			return p1[1] - p2[1]
 		return p1[0] - p2[0]
 
-	def rankFrequency(self, tl = 0, ct = 1, tx = 2, inf = 3, ln = 4, ref = 5):
+	def rankFrequency(self, tl = 0, ct = 2, tx = 1, inf = 3, ln = 4, ref = 5):
 		page_list = []
 		order = [tl, ct, inf, ln, ref]
 		for i, d in enumerate([self.title, self.categories, self.infobox,
@@ -127,7 +47,7 @@ class Response():
 		for k, v in self.text.items():
 			term_count = 0
 			for tc in v:
-				term_count += tc[0]
+				term_count += tc
 			page_list += [(tx, -1*len(v), -1*term_count, k)]
 		rankedp = sorted(page_list, key = functools.cmp_to_key(self._freqComp))
 		#print(rankedp)
@@ -151,28 +71,22 @@ class Response():
 
 class Query():
 
-	def __init__(self, index_location):
+	def __init__(self, index_location, cache_size = 1):
 
-		self.total_indexes = len(os.listdir(index_location)) - 1
-		#self.total_indexes = 2
-		self.shard_indexes = [ShardIndex(i, index_location) for i in range(self.total_indexes)]
-		for index in self.shard_indexes:
-			index.readIndex()
-		print("Indexes Loaded")
-		#print(self.shard_indexes[0].index)
-		#stemmer = nltk.stem.snowball.SnowballStemmer("english")
+		self.index_cache = IndexCache(index_location, cache_size)
 		stemmer = Stemmer.Stemmer('english').stemWord
 		stopwords = nltk.corpus.stopwords.words('english')
 		self.term_creator = TermsCreator(stopwords, stemmer)
 		with open(index_location + "title-index.json", 'r') as fp:
 			self.title_index = json.load(fp)
 
-	def _getShardResponse(self, wordList, shard_no, fields = 'icretob'):
+	def _getIndexResponse(self, wordList, fields = 'icretob'):
 
 		resp = Response()
 		for word in wordList:
-			page_list = self.shard_indexes[shard_no].index.get(word, [])
+			page_list = self.index_cache.getWordPosting(word)
 			doc_id = 0
+			document_freq = len(page_list)
 			for page in page_list:
 				doc_id += page[0]
 				if type(page[1]) != int:
@@ -188,24 +102,21 @@ class Query():
 						resp.links[doc_id] = resp.links.get(doc_id, 0) + 1
 					if 'b' in fields and len(page) > 2:
 						resp.text.setdefault(doc_id, []) 
-						resp.text[doc_id] += [page[2:]]	
+						resp.text[doc_id] += [page[2:][0]/document_freq]	
 				elif 'b' in fields:
 					resp.text.setdefault(doc_id, []) 
-					resp.text[doc_id] += [page[1:]]
-				resp.shard_map[doc_id] = shard_no
+					resp.text[doc_id] += [page[1:][0]/document_freq]
+				#resp.shard_map[doc_id] = shard_no
 
 		return resp
 
-	def queryALlIndex(self, qstring, fields = 'icretob'):
+	def queryIndex(self, qstring, fields = 'icretob'):
 		query_terms = list(map(lambda x:x[0], 
-			self.term_creator.generateTerms(qstring, group_size = 1, stem = False)))
-		resp = Response()
-		for i in range(self.total_indexes):
-			resp.merge(self._getShardResponse(query_terms, i, fields))
-		return resp
+			self.term_creator.generateTerms(qstring, group_size = 1, stem = True)))
+		return self._getIndexResponse(query_terms, fields)
 
 	def getQueryResults(self, query, results = 10):
-		resp = self.queryALlIndex(query).rankFrequency()[:results]
+		resp = self.queryIndex(query).rankFrequency()[:results]
 		title_resp = []
 		for response in resp:
 			title_resp += [self.title_index[str(response)]]
@@ -240,7 +151,7 @@ class Query():
 			if field in 'infobox':
 				fields += 'i'
 			qstring += query + " "
-		resp = self.queryALlIndex(qstring, fields).rankFrequency()[:results]
+		resp = self.queryIndex(qstring, fields).rankFrequency()[:results]
 		for response in resp:
 			title_resp += [self.title_index[str(response)]]
 		return title_resp
@@ -264,8 +175,8 @@ if __name__ == "__main__":
 				else:
 					results = searcher.getQueryResults(query)
 				wfp.write("\n" + "\n".join(results) + "\n")
-	# searcher = Query("./ind2/")
-	# #searcher.printQueryResults("gandhi")
+	# searcher = Query("./ind/")
+	# print(searcher.getQueryResults("new york mayor"))
 	# searcher.printQueryResults("new york mayor")
 	# print("\n")
 	# searcher.printQueryResults("war")

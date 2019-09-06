@@ -133,13 +133,15 @@ class ShardIndex():
 				docId += combined_posting[-1][0]
 
 			if i < len(current_posting):
-				current_posting[i][0] -= combined_posting[-1][0]
+				current_posting[i][0] = d1
+				current_posting[i][0] -= docId
 				while i < len(current_posting):
 					combined_posting += [current_posting[i]]
 					i += 1
 
 			if j < len(posting):
-				posting[j][0] -= combined_posting[-1][0]
+				posting[j][0] = d2
+				posting[j][0] -= docId
 				while j < len(posting):
 					combined_posting += [posting[j]]
 					j += 1
