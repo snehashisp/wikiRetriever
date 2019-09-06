@@ -65,7 +65,7 @@ if __name__ == "__main__":
 		index_loc += '/'
 	dump_loc = sys.argv[1] 
 	sharder = ShardCreator(1, 10000000, file_dir = './Shards/')
-	indexer = IndexCreator(1, index_loc = index_loc)
+	indexer = IndexCreator(4, index_loc = index_loc)
 	reader = XReader(dump_loc, indexer, sharder)
 	reader.iterParse()
 

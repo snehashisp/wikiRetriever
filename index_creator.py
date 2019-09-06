@@ -14,6 +14,7 @@ class IndexCreatorProcess(multiprocessing.Process):
 		super().__init__()
 		self.shard_index_loc = index_loc
 		self.queue = multiprocessing.Queue()
+		self._word_set = {}
 
 	def _insertPage(self, page):
 		queue, i = self._index_dict.setdefault(page.shard_no, (deque(), 
@@ -58,7 +59,7 @@ class IndexCreatorProcess(multiprocessing.Process):
 							print("CAVG", ct/c, "IAVG", it/c)
 							ct, it, c = 0,0,0
 							print("Final", page.id, page.shard_no)
-						index.writeIndex()
+						index.writeIntermediateIndex()
 						self._index_dict.pop(page.shard_no)
 						index = None
 				except Exception as e:
@@ -75,9 +76,10 @@ class IndexCreatorProcess(multiprocessing.Process):
 					page = None
 
 		for shard_no, index in self._index_dict.items():
-			print(shard_no, len(index[0]))
+			#print(shard_no, len(index[0]))
 			index = index[1]
-			index.writeIndex()
+			self._word_set[index.shard_no] = index.getWords()
+			index.writeIntermediateIndex()
 			#self._index_dict.pop(shard_no)
 			index = None
 

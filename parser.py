@@ -54,67 +54,6 @@ class TermsCreator():
 
 class WikiParser():
 
-	def _addUserTerms(self, index):
-		unlinktext = mwparserfromhell.parse(re.sub("\[\[|\]\]",'',str(self.data))).strip_code()
-		untagged_text = re.sub("<[^>]*>", '', unlinktext)
-		text = untagged_text.split("\nReferences\n")
-		index.text_map.update(self.term_creator.getTermMap(text[0]))
-		try:
-			text = text[1].split("\nExternal links\n")
-			index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
-			text = text[1].split("\nCategory\n")
-			index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
-		except:
-			pass
-
-	def _templateData(self, template):
-		data = ""
-		for param in template.params:
-			if '=' in param:
-				d = param.split('=')
-				if 'url' in d[0]:
-					data += re.sub('^www.', '', d[1]) + " "
-				else:
-					data += d[1] + " "
-			else:
-				data += str(param) + " "
-		return data
-
-	def _addTemplateTerms(self, index):
-
-		for temp in self.data.ifilter_templates():
-			updater = index.others
-			if 'Infobox' in temp.name:
-				updater = index.infobox
-			elif 'cite' in temp.name:
-				updater = index.reference
-			updater.update(list(map(lambda x:x[0], 
-				self.term_creator.generateTerms(self._templateData(temp)))))
-
-	def _addTitle(self, index):
-		index.title.update(list(map(lambda x:x[0], 
-			self.term_creator.generateTerms(str(self.page.title)))))
-
-	def _addCategories(self, index):
-		categories = "" 
-		for link in self.data.ifilter_wikilinks():
-			if 'Category' in link.title:
-				print(link.title)
-				categories += link.title.split(":")[1] + " "
-		index.category.update(list(map(lambda x:x[0], 
-			self.term_creator.generateTerms(categories))))
-
-	def _addExternalLinks(self, index):
-		exts = ""
-		for links in self.data.ifilter_external_links():
-			try:
-				exts += re.sub('^www.', '', links.url.split("/")[2])
-			except:
-				pass
-			if links.title is not None:
-				exts += str(links.title)
-		index.ext_links.update(list(map(lambda x: x[0], 
-			self.term_creator.generateTerms(exts))))
 
 	def __init__(self):
 		#stemmer = nltk.stem.snowball.SnowballStemmer("english")
@@ -140,7 +79,7 @@ class WikiParser():
 				raise e
 				pass
 
-		return list(map(lambda x: x[0], self.term_creator.generateTerms(words, stem = False)))
+		return list(map(lambda x: x[0], self.term_creator.generateTerms(words, stem = True)))
 
 	def _parsetemplate(self, text, index):
 		for template in re.findall('{{.*}}',text):
@@ -160,9 +99,9 @@ class WikiParser():
 		index.text_map.update(self.term_creator.getTermCount(text[0]))
 		try:
 			text = text[1].split("\n==External links==\n")
-			index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
+			index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = True))))
 			text = text[1].split("\n==Category==\n")
-			index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = False))))
+			index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = True))))
 		except:
 			pass
 
@@ -177,9 +116,9 @@ class WikiParser():
 			else:
 				links += cat_link + " "
 		index.category.update(list(map(lambda x:x[0], 
-			self.term_creator.generateTerms(categories, stem = False))))
+			self.term_creator.generateTerms(categories, stem = True))))
 		index.ext_links.update(list(map(lambda x: x[0], 
-			self.term_creator.generateTerms(links, stem = False))))
+			self.term_creator.generateTerms(links, stem = True))))
 
 	def _parseTitle(self, title, index):
 		index.title.update(list(map(lambda x:x[0], 

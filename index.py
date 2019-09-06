@@ -110,6 +110,46 @@ class ShardIndex():
 					posting = posting + [entry]
 			self.index[word] = posting
 
+	def mergePosting(self, word, posting):
+		current_posting = self.index.get(word, [])
+		combined_posting = []
+		if current_posting != []:
+			i, j, d1, d2, docId = 0, 0, current_posting[0][0], posting[0][0], 0
+			while i < len(current_posting) and j < len(posting):
+				if d1 < d2:
+					current_posting[i][0] = d1
+					combined_posting += [current_posting[i]]
+					i += 1
+					if i < len(current_posting):
+						d1 += current_posting[i][0]
+				else:
+					posting[j][0] = d2
+					combined_posting += [posting[j]]
+					j += 1
+					if j < len(posting):
+						d2 += posting[j][0]
+				if len(combined_posting) > 1:
+					combined_posting[-1][0] -= docId
+				docId += combined_posting[-1][0]
+
+			if i < len(current_posting):
+				current_posting[i][0] -= combined_posting[-1][0]
+				while i < len(current_posting):
+					combined_posting += [current_posting[i]]
+					i += 1
+
+			if j < len(posting):
+				posting[j][0] -= combined_posting[-1][0]
+				while j < len(posting):
+					combined_posting += [posting[j]]
+					j += 1
+			self.index[word] = combined_posting
+		else:
+			self.index[word] = posting
+
+
+	def getWords(self):
+		return list(self.index.keys())
 
 	def addPageIndex(self, page_index):
 		wordSet = set()
@@ -145,6 +185,15 @@ class ShardIndex():
 			index_map = {'d':text}
 			json.dump(index_map, fp, ensure_ascii = False)
 			self.updated = True
+
+	def writeIntermediateIndex(self):
+		sortedIndex = {}
+		for key in sorted(self.index.keys()):
+			sortedIndex[key] = self.index[key]
+		self.index = sortedIndex
+		with open(self.shard_index_dir + "i-index-" + str(self.shard_no), 'w', encoding = 'utf-8') as fp:
+			for key, value in self.index.items():
+				fp.write(json.dumps({key:value}, ensure_ascii = False) + "\n")
 
 
 if __name__ == "__main__":
