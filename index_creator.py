@@ -5,6 +5,7 @@ import parser
 import index
 import os
 import time
+import json
 
 debug = True
 
@@ -56,10 +57,15 @@ class IndexCreatorProcess(multiprocessing.Process):
 
 					if page.final:
 						if debug:
+							start = time.time()
+							index.writeIntermediateIndex()
+							it += time.time() - start
+						else:
+							index.writeIntermediateIndex()
+						if debug:
 							print("CAVG", ct/c, "IAVG", it/c)
 							ct, it, c = 0,0,0
 							print("Final", page.id, page.shard_no)
-						index.writeIntermediateIndex()
 						self._index_dict.pop(page.shard_no)
 						index = None
 				except Exception as e:
@@ -102,4 +108,40 @@ class IndexCreator():
 		for process in self.process_list:
 			process.queue.put(1)
 			process.join()
+
+
+class TitleIndexer():
+
+	def __init__(self, index_loc, max_size = 10000000):
+		self.index_loc = index_loc
+		self.max_size = max_size
+		self.current_size = 0
+		self.current_titles = {}
+		self.title_index = []
+		self.current_index = 0
+		self.ctid = ""
+
+	def _saveTitles(self):
+		with open(self.index_loc + "title-index-" + str(self.current_index), 'w', encoding = 'utf-8') as fp:
+			json.dump(self.current_titles, fp)
+
+	def addTitle(self, tid, title):
+		self.current_size += len(str(tid)) + len(str(title))
+		self.current_titles[tid] = title
+		self.ctid = tid
+		if self.current_size > self.max_size:
+			self._saveTitles()
+			self.title_index += [str(tid)]
+			self.current_index += 1
+			self.current_titles = {}
+			self.current_size = 0
+
+	def storeIndex(self):
+
+		self._saveTitles()
+		self.title_index += [str(self.ctid)]
+
+		with open(self.index_loc + "title-searcher",'w') as fp:
+			fp.write("\n".join(self.title_index))
+
 

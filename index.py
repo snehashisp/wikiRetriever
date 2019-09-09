@@ -88,27 +88,38 @@ class ShardIndex():
 
 	def _addEntry(self, word, entry):
 		posting = self.index.setdefault(word, [])
-		if posting == []:
-			posting += [entry]
-		else:
-			if posting[0][0] > entry[0]:
-				posting[0][0] = posting[0][0] - entry[0]
-				posting = [entry] + posting
-			else:
-				docId, i = posting[0][0], 1
-				while i < len(posting) and docId < entry[0]:
-					docId += posting[i][0]
-					i += 1
-				if docId > entry[0]:
-					i -= 1
-					prev = (docId - posting[i][0])
-					posting[i][0] = docId - entry[0]
-					entry[0] = entry[0] - prev
-					posting = posting[:i] + [entry] + posting[i:]
-				else:
-					entry[0] = entry[0] - docId
-					posting = posting + [entry]
-			self.index[word] = posting
+		posting.append(entry)
+		# if posting == []:
+		# 	posting += [entry]
+		# else:
+		# 	if posting[0][0] > entry[0]:
+		# 		posting[0][0] = posting[0][0] - entry[0]
+		# 		posting = [entry] + posting
+		# 	else:
+		# 		docId, i = posting[0][0], 1
+		# 		while i < len(posting) and docId < entry[0]:
+		# 			docId += posting[i][0]
+		# 			i += 1
+		# 		if docId > entry[0]:
+		# 			i -= 1
+		# 			prev = (docId - posting[i][0])
+		# 			posting[i][0] = docId - entry[0]
+		# 			entry[0] = entry[0] - prev
+		# 			posting = posting[:i] + [entry] + posting[i:]
+		# 		else:
+		# 			entry[0] = entry[0] - docId
+		# 			posting = posting + [entry]
+		#	self.index[word] = posting
+
+	def _sortEntries(self):
+		for k in self.index.keys():
+			self.index[k] = sorted(self.index[k], key = lambda x:x[0])
+			#print(self.index[k])
+			docId = self.index[k][0][0]
+			for entry in self.index[k][1:]:
+				entry[0] = entry[0] - docId
+				docId += entry[0]
+
 
 	def mergePosting(self, word, posting):
 		current_posting = self.index.get(word, [])
@@ -170,6 +181,7 @@ class ShardIndex():
 			self.updated = False
 
 	def writeIndex(self):
+		#self._sortEntries()
 		with open(self.shard_index_dir + "shard-index-" + str(self.shard_no), 'w', encoding = 'utf-8') as fp:
 			re_sequence = [[r' |"',''],
 							[r'\],\[', ';'],
@@ -189,6 +201,7 @@ class ShardIndex():
 			self.updated = True
 
 	def writeIntermediateIndex(self):
+		self._sortEntries()
 		sortedIndex = {}
 		for key in sorted(self.index.keys()):
 			sortedIndex[key] = self.index[key]
@@ -196,6 +209,7 @@ class ShardIndex():
 		with open(self.shard_index_dir + "i-index-" + str(self.shard_no), 'w', encoding = 'utf-8') as fp:
 			for key, value in self.index.items():
 				fp.write(json.dumps({key:value}, ensure_ascii = False) + "\n")
+
 
 
 if __name__ == "__main__":

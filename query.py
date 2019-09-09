@@ -84,6 +84,7 @@ class Query():
 
 		resp = Response()
 		for word in wordList:
+			#print(word)
 			page_list = self.index_cache.getWordPosting(word)
 			doc_id = 0
 			document_freq = len(page_list)
@@ -170,6 +171,7 @@ if __name__ == "__main__":
 		searcher = Query(index_loc)
 		with open(output_File, 'w') as wfp:
 			for query in queries.strip().split('\n'):
+				print(query)
 				if ":" in query:
 					results = searcher.getFieldQueryResults(query, results = 1)
 				else:

@@ -8,29 +8,38 @@ from index import PageIndex, ShardIndex
 import time
 import Stemmer
 
-class TermsCreator():
+class TermsCreator2():
 
-	def __init__(self, stopwords, stemmer, token_re = "\w+"):
+	def __init__(self, stopwords, stemmer, token_re = "[a-zA-Z][a-zA-Z0-9]+"):
 
 		self.regexp = token_re
-		self.stopwords = stopwords
+		self.stopwords = set(stopwords)
 		self.stemmer = stemmer
 
-	def generateTerms(self, text, rel_pos = True, group_size = 2, stem = True):
+	def generateTerms(self, text, rel_pos = True, group_size = 1, stem = True):
 		#stem = False
 		pos = 0
-		for t in re.finditer(self.regexp, text):
-			l, r = t.span()
-			term = text[l:r].lower()
-			if len(term) == 1 or term in self.stopwords:
-				continue
-			if stem:
-				term = self.stemmer(term)
-			pos += 1
-			if not rel_pos:
-				yield [term, l // group_size]
-			else:
-				yield [term, pos // group_size]
+		wordlist = re.findall(self.regexp, text)
+		words = []
+		for word in wordlist:
+			if len(word) != 1 and word not in self.stopwords:
+				words.append(word)
+		if stem:
+			words = self.stemmer(words)
+		return words
+
+		# for t in re.finditer(self.regexp, text):
+		# 	l, r = t.span()
+		# 	term = text[l:r].lower()
+		# 	if len(term) == 1 or term in self.stopwords:
+		# 		continue
+		# 	if stem:
+		# 		term = self.stemmer(term)
+		# 	pos += 1
+		# 	if not rel_pos:
+		# 		yield [term, l // group_size]
+		# 	else:
+		# 		yield [term, pos // group_size]
 
 	def getTermMap(self, text, rel_pos = True):
 

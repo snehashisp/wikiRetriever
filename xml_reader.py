@@ -1,10 +1,13 @@
 from xml.etree.ElementTree import iterparse
 from wiki_page import Page
 from shard import ShardCreator
-from index_creator import IndexCreator
+from index_creator import IndexCreator, TitleIndexer
 import os
 import json
 import sys
+import psutil
+
+
 
 class XReader():
 
@@ -16,7 +19,7 @@ class XReader():
 		self.namespace_filter = [] if namespace_filter is None else namespace_filter
 		self.namespaces = {}
 		self.newpage = None
-		self.title_dict = {}
+		self.title_indexer = TitleIndexer(index_creator.index_loc)
 
 	def _eventHandler(self, event, elem):
 		tag = elem.tag[elem.tag.rindex('}')+1:]
@@ -30,7 +33,7 @@ class XReader():
 		elif event == 'end' and self.newpage:
 			if tag == 'id' and self.newpage.id is None:
 				self.newpage.id = int(elem.text)
-				self.title_dict[self.newpage.id] = self.newpage.title
+				#self.title_dict[self.newpage.id] = self.newpage.title
 			elif tag == 'ns':
 				if self.namespaces.get(elem.text, False) == False:
 					self.newpage = None
@@ -38,7 +41,7 @@ class XReader():
 					self.newpage.namespace = self.namespaces[elem.text]
 			elif tag == 'title':
 				self.newpage.title = elem.text
-				self.title_dict[self.newpage.id] = elem.text
+				#self.title_dict[self.newpage.id] = elem.text
 			elif tag == 'text':
 				self.newpage.text = elem.text
 			elif tag == 'page':
@@ -47,16 +50,19 @@ class XReader():
 					self.shard_creator.add(self.newpage)
 					#print(self.newpage.shard_no)
 					self.index_creator.addPage(self.newpage)
+					self.title_indexer.addTitle(self.newpage.id, self.newpage.title)
 			elem.clear()
 
-	def iterParse(self):
+	def iterParse(self, mem_limit = 80):
 
 		for event, elem in iterparse(self.file, ('start','end')):
 			self._eventHandler(event, elem)
+			while psutil.virtual_memory().percent > mem_limit:
+				pass
+
 		self.shard_creator.cleanup()
 		self.index_creator.finalize()
-		with open(self.index_creator.index_loc + 'title-index.json', 'w') as fp:
-			json.dump(self.title_dict, fp)
+		self.title_indexer.storeIndex()
 
 if __name__ == "__main__":
 
@@ -64,8 +70,8 @@ if __name__ == "__main__":
 	if index_loc[-1] != '/':
 		index_loc += '/'
 	dump_loc = sys.argv[1] 
-	sharder = ShardCreator(1, 10000000, file_dir = './Shards/')
-	indexer = IndexCreator(4, index_loc = index_loc)
+	sharder = ShardCreator(1, 100000000, file_dir = './Shards/')
+	indexer = IndexCreator(6, index_loc = index_loc)
 	reader = XReader(dump_loc, indexer, sharder)
 	reader.iterParse()
 
