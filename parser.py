@@ -8,7 +8,7 @@ from index import PageIndex, ShardIndex
 import time
 import Stemmer
 
-class TermsCreator2():
+class TermsCreator():
 
 	def __init__(self, stopwords, stemmer, token_re = "[a-zA-Z][a-zA-Z0-9]+"):
 
@@ -22,24 +22,12 @@ class TermsCreator2():
 		wordlist = re.findall(self.regexp, text)
 		words = []
 		for word in wordlist:
+			word = word.lower()
 			if len(word) != 1 and word not in self.stopwords:
 				words.append(word)
 		if stem:
 			words = self.stemmer(words)
 		return words
-
-		# for t in re.finditer(self.regexp, text):
-		# 	l, r = t.span()
-		# 	term = text[l:r].lower()
-		# 	if len(term) == 1 or term in self.stopwords:
-		# 		continue
-		# 	if stem:
-		# 		term = self.stemmer(term)
-		# 	pos += 1
-		# 	if not rel_pos:
-		# 		yield [term, l // group_size]
-		# 	else:
-		# 		yield [term, pos // group_size]
 
 	def getTermMap(self, text, rel_pos = True):
 
@@ -66,7 +54,7 @@ class WikiParser():
 
 	def __init__(self):
 		#stemmer = nltk.stem.snowball.SnowballStemmer("english")
-		stemmer = Stemmer.Stemmer('english').stemWord
+		stemmer = Stemmer.Stemmer('english').stemWords
 		stopwords = nltk.corpus.stopwords.words('english')
 		self.term_creator = TermsCreator(stopwords, stemmer)
 
@@ -88,7 +76,7 @@ class WikiParser():
 				raise e
 				pass
 
-		return list(map(lambda x: x[0], self.term_creator.generateTerms(words, stem = True)))
+		return self.term_creator.generateTerms(words, stem = True)
 
 	def _parsetemplate(self, text, index):
 		for template in re.findall('{{.*}}',text):
@@ -108,9 +96,9 @@ class WikiParser():
 		index.text_map.update(self.term_creator.getTermCount(text[0]))
 		try:
 			text = text[1].split("\n==External links==\n")
-			index.reference.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = True))))
+			index.reference.update(self.term_creator.generateTerms(text[0], stem = True))
 			text = text[1].split("\n==Category==\n")
-			index.ext_links.update(list(map(lambda x: x[0], self.term_creator.generateTerms(text[0], stem = True))))
+			index.ext_links.update(self.term_creator.generateTerms(text[0], stem = True))
 		except:
 			pass
 
@@ -124,14 +112,11 @@ class WikiParser():
 					pass
 			else:
 				links += cat_link + " "
-		index.category.update(list(map(lambda x:x[0], 
-			self.term_creator.generateTerms(categories, stem = True))))
-		index.ext_links.update(list(map(lambda x: x[0], 
-			self.term_creator.generateTerms(links, stem = True))))
+		index.category.update(self.term_creator.generateTerms(categories, stem = True))
+		index.ext_links.update(self.term_creator.generateTerms(links, stem = True))
 
 	def _parseTitle(self, title, index):
-		index.title.update(list(map(lambda x:x[0], 
-			self.term_creator.generateTerms(title))))
+		index.title.update(self.term_creator.generateTerms(title))
 
 	def createPageIndex(self, page):
 		text = re.sub(r"<[^>]*>", '', html.unescape(page.text))

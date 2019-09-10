@@ -17,6 +17,9 @@ class IndexMerger():
 		for file in files:
 			if 'i-index' in file:
 				self.file_pointer += [open(self.index_loc + file,'r', encoding = 'utf-8')]
+		self.file_pointer = sorted(self.file_pointer, key = lambda x:int(x.name.split('-')[-1]))
+		for i in self.file_pointer:
+			print(i.name)
 
 	def mergeIndices(self):
 		posting = {}
@@ -37,7 +40,7 @@ class IndexMerger():
 			posting_list = posting[(word, file)]
 			posting.pop((word, file))
 			size = len(str(posting_list))
-			
+
 			if re.search(r'^[a-z][a-z0-9]+',word):
 				if size + current_size > self.index_size and word != last_word:
 					shard_index.writeIndex()
@@ -45,7 +48,7 @@ class IndexMerger():
 					current_size = 0
 					shard_index = index.ShardIndex(current_index, self.index_loc)
 
-				shard_index.mergePosting(word, posting_list)
+				shard_index.mergePostingSimple(word, posting_list)
 				self.word_index_loc[current_index] = word
 				last_word = word
 				current_size += size

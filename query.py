@@ -1,7 +1,7 @@
 from wiki_page import Page
 from index import ShardIndex
 from parser import TermsCreator
-from cache import IndexCache
+from cache import IndexCache, TitleCache
 import json
 import os
 import math
@@ -74,11 +74,12 @@ class Query():
 	def __init__(self, index_location, cache_size = 1):
 
 		self.index_cache = IndexCache(index_location, cache_size)
-		stemmer = Stemmer.Stemmer('english').stemWord
+		stemmer = Stemmer.Stemmer('english').stemWords
 		stopwords = nltk.corpus.stopwords.words('english')
 		self.term_creator = TermsCreator(stopwords, stemmer)
-		with open(index_location + "title-index.json", 'r') as fp:
-			self.title_index = json.load(fp)
+		# with open(index_location + "title-index.json", 'r') as fp:
+		# 	self.title_index = json.load(fp)
+		self.title_cache = TitleCache(inde, cache_size = 4)
 
 	def _getIndexResponse(self, wordList, fields = 'icretob'):
 
@@ -112,8 +113,7 @@ class Query():
 		return resp
 
 	def queryIndex(self, qstring, fields = 'icretob'):
-		query_terms = list(map(lambda x:x[0], 
-			self.term_creator.generateTerms(qstring, group_size = 1, stem = True)))
+		query_terms = self.term_creator.generateTerms(qstring, group_size = 1, stem = True)
 		return self._getIndexResponse(query_terms, fields)
 
 	def getQueryResults(self, query, results = 10):

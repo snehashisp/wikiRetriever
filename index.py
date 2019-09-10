@@ -32,6 +32,7 @@ class ShardIndex():
 		self.shard_index_dir = shard_index_dir
 		self.index = {}
 		self.updated = False
+		self._prev_post_end = None
 
 	def _encodeHuffman(self, text):
 		enc = HuffmanCodec.from_data(text)
@@ -120,6 +121,14 @@ class ShardIndex():
 				entry[0] = entry[0] - docId
 				docId += entry[0]
 
+	def _sortDiffEntries(self):
+		for k, postings in self.index.items():
+			postings = sorted(postings, key = lambda x:x[0])
+			prev = postings[0][0]
+			for entry in postings[1:]:
+				entry[0] -= prev
+				prev += entry[0]
+			self.index[k] = postings
 
 	def mergePosting(self, word, posting):
 		current_posting = self.index.get(word, [])
@@ -148,6 +157,7 @@ class ShardIndex():
 				current_posting[i][0] -= docId
 				while i < len(current_posting):
 					combined_posting += [current_posting[i]]
+					docId += combined_posting[-1][0]
 					i += 1
 
 			if j < len(posting):
@@ -155,10 +165,19 @@ class ShardIndex():
 				posting[j][0] -= docId
 				while j < len(posting):
 					combined_posting += [posting[j]]
+					docId += combined_posting[-1][0]
 					j += 1
 			self.index[word] = combined_posting
 		else:
 			self.index[word] = posting
+
+	def mergePostingSimple(self, word, posting):
+		current_posting = self.index.setdefault(word, [])
+		docId = posting[0][0]
+		for entry  in posting[1:]:
+			docId += entry[0]
+			entry[0] = docId
+		current_posting += posting
 
 
 	def getWords(self):
@@ -182,6 +201,8 @@ class ShardIndex():
 
 	def writeIndex(self):
 		#self._sortEntries()
+		self._sortDiffEntries()
+
 		with open(self.shard_index_dir + "shard-index-" + str(self.shard_no), 'w', encoding = 'utf-8') as fp:
 			re_sequence = [[r' |"',''],
 							[r'\],\[', ';'],
