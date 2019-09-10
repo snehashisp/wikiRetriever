@@ -37,7 +37,7 @@ class Response():
 			return p1[1] - p2[1]
 		return p1[0] - p2[0]
 
-	def rankFrequency(self, tl = 0, ct = 2, tx = 1, inf = 3, ln = 4, ref = 5):
+	def rankFrequency(self, tl = 1, ct = 2, tx = 0, inf = 3, ln = 4, ref = 5):
 		page_list = []
 		order = [tl, ct, inf, ln, ref]
 		for i, d in enumerate([self.title, self.categories, self.infobox,
@@ -77,9 +77,7 @@ class Query():
 		stemmer = Stemmer.Stemmer('english').stemWords
 		stopwords = nltk.corpus.stopwords.words('english')
 		self.term_creator = TermsCreator(stopwords, stemmer)
-		# with open(index_location + "title-index.json", 'r') as fp:
-		# 	self.title_index = json.load(fp)
-		self.title_cache = TitleCache(inde, cache_size = 4)
+		self.title_cache = TitleCache(index_location, cache_size = 4)
 
 	def _getIndexResponse(self, wordList, fields = 'icretob'):
 
@@ -118,9 +116,10 @@ class Query():
 
 	def getQueryResults(self, query, results = 10):
 		resp = self.queryIndex(query).rankFrequency()[:results]
+		#print(resp)
 		title_resp = []
 		for response in resp:
-			title_resp += [self.title_index[str(response)]]
+			title_resp += [self.title_cache.getTitle(str(response))]
 		return title_resp
 
 	def _getFeildAndValues(self, query):
@@ -154,7 +153,7 @@ class Query():
 			qstring += query + " "
 		resp = self.queryIndex(qstring, fields).rankFrequency()[:results]
 		for response in resp:
-			title_resp += [self.title_index[str(response)]]
+			title_resp += [self.title_cache.getTitle(str(response))]
 		return title_resp
 
 

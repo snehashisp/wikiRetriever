@@ -1,6 +1,7 @@
 import index
 import bisect
 import math
+import json
 
 class ShardCache():
 
@@ -96,8 +97,10 @@ class TitleCache():
 		self.title_counter = {}
 		self.title_loc = index_loc
 		self._max_counter = 0	
-		with open(self.index_loc + "title-searcher", 'r') as fp:
-			self.title_list = fp.read().split('\n')[:1]
+		with open(self.title_loc + "title-searcher", 'r') as fp:
+			self.title_list = fp.read().split('\n')[:-1]
+		self.title_list = [int(i) for i in self.title_list]
+		#print(self.title_list)
 
 	def _getReplacement(self):
 
@@ -114,7 +117,7 @@ class TitleCache():
 			self.title_map[title_no] = json.load(fp)
 
 	def _getTitle(self, title_no, doc_id):
-		if title_no not int self.title_map:
+		if title_no not in self.title_map:
 			if len(self.title_map) >= self.cache_size:
 				rep = self._getReplacement()
 				self.title_map.pop(rep)
@@ -125,14 +128,17 @@ class TitleCache():
 		return self.title_map[title_no].get(doc_id, "")
 
 	def getTitle(self, doc_id):
-		title_no = bisect.bisect_left(self.title_list, doc_id)
+		title_no = bisect.bisect_left(self.title_list, int(doc_id))
+		#print(title_no)
 		return self._getTitle(title_no, doc_id)
 
 
 if __name__ == "__main__":
-	icache = IndexCache("./ind/",2)
-	print(icache.getWordPosting('gandhi'))
+	#icache = IndexCache("./ind/",2)
+	#print(icache.getWordPosting('gandhi'))
+	tc = TitleCache("/mnt/sda5/index/", 2)
+	print(tc.getTitle('56965188'))
 	# print(icache.getWordPosting('austria'))
+
 	# print(icache.getWordPosting('date'))
 	# print(icache.getWordPosting('paddick'))
-

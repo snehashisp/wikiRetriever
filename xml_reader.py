@@ -49,7 +49,7 @@ class XReader():
 					#print(self.newpage.namespace, self.newpage.title, self.newpage.id)
 					self.shard_creator.add(self.newpage)
 					#print(self.newpage.shard_no)
-					self.index_creator.addPage(self.newpage)
+					self.index_creator.addPageInplace(self.newpage)
 					self.title_indexer.addTitle(self.newpage.id, self.newpage.title)
 			elem.clear()
 
@@ -57,9 +57,6 @@ class XReader():
 
 		for event, elem in iterparse(self.file, ('start','end')):
 			self._eventHandler(event, elem)
-			while psutil.virtual_memory().percent > mem_limit:
-				pass
-
 		self.shard_creator.cleanup()
 		self.index_creator.finalize()
 		self.title_indexer.storeIndex()

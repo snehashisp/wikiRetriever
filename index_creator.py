@@ -8,6 +8,7 @@ import time
 import json
 
 debug = True
+c, ct, it = 0, 0, 0
 
 class IndexCreatorProcess(multiprocessing.Process):
 
@@ -96,18 +97,57 @@ class IndexCreator():
 		if not os.path.exists(index_loc):
 			os.mkdir(index_loc)
 		self.index_loc = index_loc
-		self.process_list = [IndexCreatorProcess(index_loc) for i in range(process_count)]
-		for process in self.process_list:
-			process.start()
+		#self.process_list = [IndexCreatorProcess(index_loc) for i in range(process_count)]
+		#for process in self.process_list:
+		#	process.start()
+		self.wiki_parser = parser.WikiParser()
 		self.shard_count = 0
+		self.index = None
 
 	def addPage(self, page):
 		self.process_list[page.shard_no % len(self.process_list)].queue.put(page)
 
+	def addPageInplace(self, page):
+		global c, ct, it 
+		try:
+			if not self.index:
+				self.index = index.ShardIndex(page.shard_no, self.index_loc)
+			if debug:
+				start = time.time()
+				page_index = self.wiki_parser.createPageIndex(page)
+				ct += time.time() - start
+				start = time.time()
+				self.index.addPageIndex(page_index)
+				it += time.time() - start
+				c += 1
+			else:
+				page_index = self.wiki_parser.createPageIndex(page)
+				self.index.addPageIndex(page_index)
+
+			if page.final:
+				if debug:
+					start = time.time()
+					self.index.writeIntermediateIndex()
+					it += time.time() - start
+				else:
+					self.index.writeIntermediateIndex()
+				if debug:
+					print("CAVG", ct/c, "IAVG", it/c)
+					ct, it, c = 0,0,0
+					print("Final", page.id, page.shard_no)
+				#self._index_dict.pop(page.shard_no)
+				self.index = None
+		except Exception as e:
+			#print("Errror", page.id)
+			#raise e
+			pass
+
 	def finalize(self):
-		for process in self.process_list:
-			process.queue.put(1)
-			process.join()
+		# for process in self.process_list:
+		# 	process.queue.put(1)
+		# 	process.join()
+		if self.index:
+			self.index.writeIntermediateIndex()
 
 
 class TitleIndexer():
