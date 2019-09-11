@@ -2,6 +2,7 @@ from xml.etree.ElementTree import iterparse
 from wiki_page import Page
 from shard import ShardCreator
 from index_creator import IndexCreator, TitleIndexer
+from merger import IndexMerger
 import os
 import json
 import sys
@@ -61,6 +62,11 @@ class XReader():
 		self.index_creator.finalize()
 		self.title_indexer.storeIndex()
 
+	def merge(self, index_size = 10000000):
+		merger = IndexMerger(self.index_creator.index_loc, index_size)
+		merger.mergeIndices()
+		merger.storeIndexSearcher()
+
 if __name__ == "__main__":
 
 	index_loc = sys.argv[2]
@@ -71,4 +77,7 @@ if __name__ == "__main__":
 	indexer = IndexCreator(1, index_loc = index_loc)
 	reader = XReader(dump_loc, indexer, sharder)
 	reader.iterParse()
+	print("Merging Intermediate Indices")
+	reader.merge()
+
 

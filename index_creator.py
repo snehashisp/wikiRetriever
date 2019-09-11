@@ -132,9 +132,9 @@ class IndexCreator():
 				else:
 					self.index.writeIntermediateIndex()
 				if debug:
-					print("CAVG", ct/c, "IAVG", it/c)
+					#print("CAVG", ct/c, "IAVG", it/c)
 					ct, it, c = 0,0,0
-					print("Final", page.id, page.shard_no)
+					print("Final Page ID", page.id, "Intermediate Inedex no", page.shard_no)
 				#self._index_dict.pop(page.shard_no)
 				self.index = None
 		except Exception as e:

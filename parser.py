@@ -10,7 +10,7 @@ import Stemmer
 
 class TermsCreator():
 
-	def __init__(self, stopwords, stemmer, token_re = "[a-zA-Z][a-zA-Z0-9]+"):
+	def __init__(self, stopwords, stemmer, token_re = r"[a-zA-Z0-9]+"):
 
 		self.regexp = token_re
 		self.stopwords = set(stopwords)

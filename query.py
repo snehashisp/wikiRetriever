@@ -37,18 +37,18 @@ class Response():
 			return p1[1] - p2[1]
 		return p1[0] - p2[0]
 
-	def rankFrequency(self, tl = 1, ct = 2, tx = 0, inf = 3, ln = 4, ref = 5):
+	def rankFrequency(self, tl = 4, ct = 2.5, tx = 3, inf = 2, ln = 2, ref = 2):
 		page_list = []
 		order = [tl, ct, inf, ln, ref]
 		for i, d in enumerate([self.title, self.categories, self.infobox,
 					self.links, self.reference]):
 			for k, v in d.items():
-				page_list += [(order[i], -1*v, k)]
+				page_list += [(order[i]*-1*v,-1*v,k)]
 		for k, v in self.text.items():
 			term_count = 0
 			for tc in v:
 				term_count += tc
-			page_list += [(tx, -1*len(v), -1*term_count, k)]
+			page_list += [(tx*-1*len(v), -1*term_count, k)]
 		rankedp = sorted(page_list, key = functools.cmp_to_key(self._freqComp))
 		#print(rankedp)
 		pages = set()
@@ -139,19 +139,31 @@ class Query():
 		qstring = ""
 		fields = ''
 		title_resp = []
+		tl,ct,tx,inf,ln,ref = 1, 1, 1, 1, 1, 1
 		for field, query in self._getFeildAndValues(query):
 			if field in 'title':
 				fields += 't'
+				tl = 5
 			if field in 'body':
 				fields += 'b'
+				tx = 3
 			if field in 'category':
 				fields += 'c'
+				ct = 2.5
 			if field in 'ref':
 				fields += 'r'
+				ref = 2
 			if field in 'infobox':
 				fields += 'i'
+				inf = 2
+			if fields in 'external':
+				fields += 'e'
+				ln = 2
 			qstring += query + " "
-		resp = self.queryIndex(qstring, fields).rankFrequency()[:results]
+
+
+		resp = self.queryIndex(qstring, fields).rankFrequency(tl = tl, ct = ct, 
+			tx = tx, ref = ref, inf = inf, ln = ln)[:results]
 		for response in resp:
 			title_resp += [self.title_cache.getTitle(str(response))]
 		return title_resp
@@ -162,20 +174,48 @@ if __name__ == "__main__":
 	index_loc = sys.argv[1]
 	if index_loc[-1] != '/':
 		index_loc += "/"
-	query_file = sys.argv[2] 
-	output_File = sys.argv[3]
 
-	with open(query_file, 'r') as fp:
-		queries = fp.read()
-		searcher = Query(index_loc)
-		with open(output_File, 'w') as wfp:
-			for query in queries.strip().split('\n'):
-				print(query)
-				if ":" in query:
-					results = searcher.getFieldQueryResults(query, results = 1)
-				else:
-					results = searcher.getQueryResults(query)
-				wfp.write("\n" + "\n".join(results) + "\n")
+	if '-f' in sys.argv:
+		infile = sys.argv[sys.argv.index('-f') + 1]
+		with open(infile, 'r') as fp:
+			queries = fp.read().strip().split('\n')
+	else:
+		queries = [sys.argv[2]]
+
+	if '-o' in sys.argv:
+		outfile = sys.argv[sys.argv.index('-o') + 1]
+		fp = open(outfile, 'w')
+		printFunc = fp.write
+	else:
+		printFunc = print
+
+	results_count = 10
+	if '-n' in sys.argv:
+		results_count = int(sys.argv[sys.argv.index('-n') + 1])
+
+	searcher = Query(index_loc)
+	for query in queries:
+		print(query)
+		if ":" in query:
+			results = searcher.getFieldQueryResults(query, results = results_count)
+		else:
+			results = searcher.getQueryResults(query, results = results_count)
+		printFunc("\n" + "\n".join(results) + "\n")
+
+	if '-o' in sys.argv:
+		fp.close()
+
+	# with open(query_file, 'r') as fp:
+	# 	queries = fp.read()
+	# 	searcher = Query(index_loc)
+	# 	with open(output_File, 'w') as wfp:
+	# 		for query in queries.strip().split('\n'):
+	# 			print(query)
+	# 			if ":" in query:
+	# 				results = searcher.getFieldQueryResults(query, results = 1)
+	# 			else:
+	# 				results = searcher.getQueryResults(query)
+	# 			wfp.write("\n" + "\n".join(results) + "\n")
 	# searcher = Query("./ind/")
 	# print(searcher.getQueryResults("new york mayor"))
 	# searcher.printQueryResults("new york mayor")

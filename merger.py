@@ -18,8 +18,6 @@ class IndexMerger():
 			if 'i-index' in file:
 				self.file_pointer += [open(self.index_loc + file,'r', encoding = 'utf-8')]
 		self.file_pointer = sorted(self.file_pointer, key = lambda x:int(x.name.split('-')[-1]))
-		for i in self.file_pointer:
-			print(i.name)
 
 	def mergeIndices(self):
 		posting = {}
@@ -41,7 +39,7 @@ class IndexMerger():
 			posting.pop((word, file))
 			size = len(str(posting_list))
 
-			if re.search(r'^[a-z][a-z0-9]+',word):
+			if re.search(r'[a-z0-9]+',word):
 				if size + current_size > self.index_size and word != last_word:
 					shard_index.writeIndex()
 					current_index += 1
@@ -52,7 +50,7 @@ class IndexMerger():
 				self.word_index_loc[current_index] = word
 				last_word = word
 				current_size += size
-				print(word)
+				#print(word)
 
 			fp = self.file_pointer[file]
 			text = fp.readline()
@@ -62,9 +60,9 @@ class IndexMerger():
 				posting[(word, file)] = data
 				heapq.heappush(heap, (word, file))
 			else:
-				print('Done with', fp.name)
+				print('Intermediate Index', fp.name, " merged")
 				fp.close()
-				#os.unlink(fp.name)
+				os.unlink(fp.name)
 		shard_index.writeIndex()
 		self.final_index_count = current_index
 
