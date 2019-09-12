@@ -38,7 +38,7 @@ class Response():
 			return p1[1] - p2[1]
 		return p1[0] - p2[0]
 
-	def rankFrequency(self, tl = 4, ct = 2.5, tx = 3, inf = 2, ln = 2, ref = 2):
+	def rankFrequency(self, tl = 5, ct = 2, tx = 3, inf = 1, ln = 1, ref = 1):
 		page_list = []
 		order = [tl, ct, inf, ln, ref]
 		for i, d in enumerate([self.title, self.categories, self.infobox,
@@ -177,6 +177,13 @@ if __name__ == "__main__":
 		index_loc += "/"
 	searcher = Query(index_loc)
 	results_count = 10
+
+	if '-n' in sys.argv:
+		results_count = int(sys.argv[sys.argv.index('-n') + 1])
+		sys.argv.pop(sys.argv.index('-n') + 1)
+		sys.argv.remove('-n')
+
+
 	if len(sys.argv) == 2:
 		while True:
 			print("Enter Search Querry: ",end = "")
@@ -209,9 +216,6 @@ if __name__ == "__main__":
 		else:
 			printFunc = print
 
-		if '-n' in sys.argv:
-			results_count = int(sys.argv[sys.argv.index('-n') + 1])
-
 		for query in queries:
 			print(query)
 			if ":" in query:
@@ -223,7 +227,7 @@ if __name__ == "__main__":
 				results = searcher.getQueryResults(query, results = results_count)
 				duration = time.time() - st
 			printFunc("\n" + "\n".join(results) + "\n")
-			printFunc("Time Taken", duration)
+			printFunc("Time Taken " + str(duration))
 
 		if '-o' in sys.argv:
 			fp.close()
