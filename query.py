@@ -10,6 +10,7 @@ import nltk
 import re
 import sys
 import Stemmer
+import time
 
 class Response():
 
@@ -174,36 +175,58 @@ if __name__ == "__main__":
 	index_loc = sys.argv[1]
 	if index_loc[-1] != '/':
 		index_loc += "/"
-
-	if '-f' in sys.argv:
-		infile = sys.argv[sys.argv.index('-f') + 1]
-		with open(infile, 'r') as fp:
-			queries = fp.read().strip().split('\n')
-	else:
-		queries = [sys.argv[2]]
-
-	if '-o' in sys.argv:
-		outfile = sys.argv[sys.argv.index('-o') + 1]
-		fp = open(outfile, 'w')
-		printFunc = fp.write
-	else:
-		printFunc = print
-
-	results_count = 10
-	if '-n' in sys.argv:
-		results_count = int(sys.argv[sys.argv.index('-n') + 1])
-
 	searcher = Query(index_loc)
-	for query in queries:
-		print(query)
-		if ":" in query:
-			results = searcher.getFieldQueryResults(query, results = results_count)
-		else:
-			results = searcher.getQueryResults(query, results = results_count)
-		printFunc("\n" + "\n".join(results) + "\n")
+	results_count = 10
+	if len(sys.argv) == 2:
+		while True:
+			print("Enter Search Querry: ",end = "")
+			query = input()
+			if query == 'EXIT':
+				break
+			if ":" in query:
+				st = time.time()
+				results = searcher.getFieldQueryResults(query, results = results_count)
+				duration = time.time() - st
+			else:
+				st = time.time()
+				results = searcher.getQueryResults(query, results = results_count)
+				duration = time.time() - st
+			print("\n" + "\n".join(results) + "\n")
+			print("Time Taken", duration)
 
-	if '-o' in sys.argv:
-		fp.close()
+	else:
+		if '-f' in sys.argv:
+			infile = sys.argv[sys.argv.index('-f') + 1]
+			with open(infile, 'r') as fp:
+				queries = fp.read().strip().split('\n')
+		else:
+			queries = [sys.argv[2]]
+
+		if '-o' in sys.argv:
+			outfile = sys.argv[sys.argv.index('-o') + 1]
+			fp = open(outfile, 'w')
+			printFunc = fp.write
+		else:
+			printFunc = print
+
+		if '-n' in sys.argv:
+			results_count = int(sys.argv[sys.argv.index('-n') + 1])
+
+		for query in queries:
+			print(query)
+			if ":" in query:
+				st = time.time()
+				results = searcher.getFieldQueryResults(query, results = results_count)
+				duration = time.time() - st
+			else:
+				st = time.time()
+				results = searcher.getQueryResults(query, results = results_count)
+				duration = time.time() - st
+			printFunc("\n" + "\n".join(results) + "\n")
+			printFunc("Time Taken", duration)
+
+		if '-o' in sys.argv:
+			fp.close()
 
 	# with open(query_file, 'r') as fp:
 	# 	queries = fp.read()

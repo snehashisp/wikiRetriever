@@ -48,7 +48,7 @@ class ShardCache():
 
 class IndexCache():
 
-	def __init__(self, index_loc, cache_size = 4):
+	def __init__(self, index_loc, cache_size = 24):
 		self.cache_size = cache_size
 		self.current_size = 0
 		self.index_map = {}
@@ -91,7 +91,7 @@ class IndexCache():
 
 class TitleCache():
 
-	def __init__(self, index_loc, cache_size = 8):
+	def __init__(self, index_loc, cache_size = 24):
 		self.cache_size = cache_size
 		self.title_map = {}
 		self.title_counter = {}
