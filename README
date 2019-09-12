@@ -1,0 +1,30 @@
+Wikipedia Retrieval Project
+Snehashis Pal
+M.Tech 2018201072
+
+* Creating index.
+
+	bash index.sh [LOCATION OF DUMP] [INDEX LOCATION]
+	Will take a long time.
+
+* Quering
+	
+	use -n NUMBER for selecting the number of outputs
+	For interactive queries from terminal:
+
+		bash search.sh [LOCATION OF INDEX] {-n NUMBER}
+
+	For directly giving a query:
+
+		bash search.sh [LOCATION OF INDEX] [query] {-n NUMBER}
+
+	For getting query from a file:
+
+		bash search.sh [LOCATION OF INDEX] {-f FILENPATH} {-n NUMBER}
+
+	For storing output to a file(does not work in interactive mode):
+
+		bash search.sh [LOCATION OF INDEX] [query] {-o FILEPATH} {-n NUMBER}
+		bsah search.sh [LOCATION OF INDEX] {-f FILEPATH} {-o FILEPATH} {-n NUMBER}
+
+
